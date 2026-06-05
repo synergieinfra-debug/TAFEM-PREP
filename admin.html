@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TAFEM Prép — Admin</title>
+<style>
+  :root{ --navy:#173058; --gold:#b9842a; --line:#dfe4ec; --muted:#64707f; --bg:#f3f5f9; --ok:#1c7a4a; --bad:#c0392b; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:#1c2430;-webkit-text-size-adjust:100%}
+  .wrap{max-width:560px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:8px 0 2px;color:var(--navy)}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+  .card h2{font-size:15px;margin:0 0 10px;color:var(--navy)}
+  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+  input,select{width:100%;padding:11px 12px;font-size:15px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit}
+  input:focus,select:focus{outline:none;border-color:var(--navy)}
+  button{cursor:pointer;border:none;border-radius:10px;font-family:inherit;font-weight:700;font-size:14px;padding:11px 14px}
+  .btn{background:var(--navy);color:#fff;width:100%}
+  .btn.gold{background:var(--gold)}
+  .btn.sm{width:auto;padding:8px 11px;font-size:13px}
+  .btn.ghost{background:#eef1f6;color:var(--navy)}
+  .btn.danger{background:#fdecea;color:var(--bad)}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .stat{background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+  .stat b{display:block;font-size:22px;color:var(--navy)}
+  .stat span{font-size:11px;color:var(--muted)}
+  .msg{font-size:13px;margin:8px 0;min-height:18px}
+  .msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)}
+  .codeitem{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
+  .codeitem .c{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;font-size:15px;color:var(--navy);letter-spacing:.5px}
+  .tags{font-size:11px;color:var(--muted);margin:3px 0 8px}
+  .pill{display:inline-block;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:700;margin-right:5px}
+  .pill.actif{background:#e7f6ee;color:var(--ok)} .pill.inactif{background:#fdecea;color:var(--bad)}
+  .pill.libre{background:#eef1f6;color:var(--muted)} .pill.activé{background:#fff3da;color:var(--gold)}
+  .gencode{font-family:ui-monospace,monospace;font-weight:700;color:var(--navy);background:#f7f9fc;border:1px dashed var(--line);border-radius:8px;padding:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+  .hidden{display:none}
+  .hint{font-size:11px;color:var(--muted);margin-top:6px}
+  .modal{position:fixed;inset:0;background:rgba(15,30,50,.55);display:flex;align-items:center;justify-content:center;padding:18px;z-index:60}
+  .modal.hidden{display:none}
+  .modalbox{background:#fff;border-radius:14px;padding:16px;max-width:420px;width:100%}
+  .modalbox h3{margin:0 0 10px;color:var(--navy);font-size:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>TAFEM Prép — Espace admin</h1>
+  <p class="sub">Génération et gestion des codes d'accès.</p>
+
+  <!-- LOGIN -->
+  <div class="card" id="loginCard">
+    <h2>Connexion admin</h2>
+    <label>Mot de passe admin</label>
+    <input id="pwd" type="password" placeholder="Ton mot de passe" autocomplete="current-password">
+    <div style="height:10px"></div>
+    <button class="btn" onclick="login()">Entrer →</button>
+    <div id="loginMsg" class="msg"></div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dash" class="hidden">
+
+    <div class="card">
+      <h2>Tableau de bord</h2>
+      <div class="stats" id="stats">
+        <div class="stat"><b id="s_total">–</b><span>Codes au total</span></div>
+        <div class="stat"><b id="s_vendus">–</b><span>Vendus (attribués)</span></div>
+        <div class="stat"><b id="s_dispo">–</b><span>Disponibles</span></div>
+        <div class="stat"><b id="s_actives">–</b><span>Activés (sur tél.)</span></div>
+      </div>
+      <div style="height:10px"></div>
+      <button class="btn ghost" onclick="refresh()">↻ Rafraîchir</button>
+    </div>
+
+    <div class="card">
+      <h2>Générer des codes</h2>
+      <label>Combien de codes ?</label>
+      <input id="genN" type="number" value="10" min="1" max="200">
+      <div style="height:10px"></div>
+      <button class="btn gold" onclick="generate()">+ Générer</button>
+      <div id="genMsg" class="msg"></div>
+      <div id="genList"></div>
+    </div>
+
+    <div class="card">
+      <h2>Chercher / gérer un code</h2>
+      <label>Recherche (code, nom ou téléphone)</label>
+      <div class="row">
+        <input id="search" placeholder="Ex : AHMED ou TAFEM-..." style="flex:1">
+        <button class="btn sm" onclick="loadList()">Chercher</button>
+      </div>
+      <div class="hint">Laisse vide et clique pour voir les derniers codes.</div>
+      <div id="list" style="margin-top:12px"></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="modal" class="modal hidden"><div class="modalbox" id="modalbox"></div></div>
+
+<script>
+/* ====== CONFIG (déjà rempli) ====== */
+const CFG = {
+  url: "https://bentoixtrsjktmjnwwap.supabase.co",
+  anonKey: "sb_publishable_yruCFI7ss3Hjl7HJZr6Idg_tuly6UGX",
+  fn: "admin",
+  appUrl: "https://tafem-prep.vercel.app/tafem.html"  // lien envoyé à l'élève
+};
+
+let PWD = "";
+
+async function call(action, extra){
+  const res = await fetch(CFG.url.replace(/\/$/,"") + "/functions/v1/" + CFG.fn, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+CFG.anonKey, "apikey":CFG.anonKey },
+    body: JSON.stringify(Object.assign({ password: PWD, action }, extra||{}))
+  });
+  return res.json();
+}
+
+async function login(){
+  const m=document.getElementById("loginMsg");
+  PWD=document.getElementById("pwd").value.trim();
+  if(!PWD){ m.className="msg bad"; m.textContent="Entre ton mot de passe."; return; }
+  m.className="msg"; m.textContent="Connexion…";
+  try{
+    const r=await call("stats");
+    if(r.ok){
+      try{ sessionStorage.setItem("tafem_admin_pwd", PWD); }catch(e){}
+      document.getElementById("loginCard").classList.add("hidden");
+      document.getElementById("dash").classList.remove("hidden");
+      showStats(r.stats); loadList();
+    } else { m.className="msg bad"; m.textContent=r.message||"Échec."; }
+  }catch(e){ m.className="msg bad"; m.textContent="Connexion impossible."; }
+}
+
+function showStats(s){
+  document.getElementById("s_total").textContent=s.total;
+  document.getElementById("s_vendus").textContent=s.vendus;
+  document.getElementById("s_dispo").textContent=s.dispo;
+  document.getElementById("s_actives").textContent=s.actives;
+}
+async function refresh(){ const r=await call("stats"); if(r.ok) showStats(r.stats); loadList(); }
+
+async function generate(){
+  const m=document.getElementById("genMsg"), n=parseInt(document.getElementById("genN").value)||1;
+  m.className="msg"; m.textContent="Génération…";
+  const r=await call("generate",{ n });
+  if(r.ok){
+    m.className="msg ok"; m.textContent=r.codes.length+" code(s) généré(s).";
+    const box=document.getElementById("genList"); box.innerHTML="";
+    r.codes.forEach(c=>{
+      const d=document.createElement("div"); d.className="gencode";
+      d.innerHTML='<span>'+c+'</span>';
+      const b=document.createElement("button"); b.className="btn ghost sm"; b.textContent="Copier";
+      b.onclick=()=>{ navigator.clipboard.writeText(c); b.textContent="Copié ✓"; };
+      d.appendChild(b); box.appendChild(d);
+    });
+    refreshStatsOnly();
+  } else { m.className="msg bad"; m.textContent=r.message||"Erreur."; }
+}
+async function refreshStatsOnly(){ const r=await call("stats"); if(r.ok) showStats(r.stats); }
+
+async function loadList(){
+  const box=document.getElementById("list"); box.innerHTML="Chargement…";
+  const r=await call("list",{ search: document.getElementById("search").value });
+  if(!r.ok){ box.innerHTML='<div class="msg bad">'+(r.message||"Erreur")+'</div>'; return; }
+  if(!r.rows.length){ box.innerHTML='<div class="hint">Aucun code trouvé.</div>'; return; }
+  box.innerHTML="";
+  r.rows.forEach(row=>box.appendChild(renderCode(row)));
+}
+
+function renderCode(row){
+  const el=document.createElement("div"); el.className="codeitem";
+  const stat = row.statut==="actif" ? '<span class="pill actif">actif</span>' : '<span class="pill inactif">désactivé</span>';
+  const dev = row.device_id ? '<span class="pill activé">activé</span>' : '<span class="pill libre">non utilisé</span>';
+  const who = row.nom ? (row.nom+(row.contact?(" · "+row.contact):"")) : "— non attribué —";
+  el.innerHTML =
+    '<div class="c">'+row.code+'</div>'+
+    '<div class="tags">'+stat+dev+' · expire le '+(row.expire_le||"?")+'<br>'+who+'</div>';
+  const r1=document.createElement("div"); r1.className="row";
+  r1.appendChild(mkBtn("WhatsApp","btn gold sm",()=>waMessage(row)));
+  r1.appendChild(mkBtn("Attribuer","btn ghost sm",()=>assign(row)));
+  r1.appendChild(mkBtn(row.statut==="actif"?"Révoquer":"Réactiver", row.statut==="actif"?"btn danger sm":"btn ghost sm",
+      ()=>toggle(row.code,row.statut)));
+  if(row.device_id) r1.appendChild(mkBtn("Libérer tél.","btn ghost sm",()=>release(row.code)));
+  r1.appendChild(mkBtn("Prolonger","btn ghost sm",()=>extend(row.code)));
+  el.appendChild(r1);
+  return el;
+}
+function mkBtn(t,c,fn){ const b=document.createElement("button"); b.className=c; b.textContent=t; b.onclick=fn; return b; }
+
+/* ---- Modale : formulaire qui ne s'efface pas quand on sort copier ---- */
+function openModal(html){ document.getElementById("modalbox").innerHTML=html; document.getElementById("modal").classList.remove("hidden"); }
+function closeModal(){ document.getElementById("modal").classList.add("hidden"); }
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function waText(code){
+  return "Bonjour 👋\n\nVoici ton code d'accès TAFEM Prép : "+code+"\n\n"+
+"1) Ouvre l'application : "+CFG.appUrl+"\n"+
+"2) Entre ce code pour débloquer toutes les annales (valable jusqu'au 31/07/2026).\n\n"+
+"⚠️ Le code ne marche que sur UN seul téléphone — garde-le pour toi.\nBonne préparation ! 💪";
+}
+function waMessage(row){
+  openModal(
+    '<h3>Envoyer le code '+row.code+'</h3>'+
+    '<label>Numéro WhatsApp (format 2126…)</label>'+
+    '<input id="m_wa" inputmode="numeric" value="'+esc(row.contact? row.contact.replace(/\D/g,"") : "212")+'">'+
+    '<div style="height:12px"></div>'+
+    '<button class="btn gold" onclick="sendWa(\''+row.code+'\')">Ouvrir WhatsApp</button>'+
+    '<div style="height:8px"></div>'+
+    '<button class="btn ghost" onclick="copyWa(\''+row.code+'\')">Copier le message</button>'+
+    '<div style="height:8px"></div>'+
+    '<button class="btn ghost" onclick="closeModal()">Fermer</button>'+
+    '<div id="m_wamsg" class="msg ok"></div>'
+  );
+}
+function sendWa(code){
+  var n=(document.getElementById("m_wa").value||"").replace(/\D/g,"");
+  window.open("https://wa.me/"+n+"?text="+encodeURIComponent(waText(code)),"_blank");
+}
+function copyWa(code){
+  navigator.clipboard.writeText(waText(code));
+  var m=document.getElementById("m_wamsg"); if(m) m.textContent="Message copié ✓ (colle-le dans WhatsApp)";
+}
+
+function assign(row){
+  openModal(
+    '<h3>Attribuer '+row.code+'</h3>'+
+    '<label>Nom de l\'élève</label>'+
+    '<input id="m_nom" value="'+esc(row.nom)+'">'+
+    '<label>Téléphone / WhatsApp</label>'+
+    '<input id="m_contact" inputmode="numeric" value="'+esc(row.contact)+'">'+
+    '<div style="height:12px"></div>'+
+    '<button class="btn" onclick="saveAssign(\''+row.code+'\')">Enregistrer</button>'+
+    '<div style="height:8px"></div>'+
+    '<button class="btn ghost" onclick="closeModal()">Annuler</button>'+
+    '<div id="m_amsg" class="msg bad"></div>'
+  );
+}
+async function saveAssign(code){
+  var nom=(document.getElementById("m_nom").value||"").trim();
+  var contact=(document.getElementById("m_contact").value||"").trim();
+  var r=await call("assign",{ code, nom, contact });
+  if(r.ok){ closeModal(); loadList(); refreshStatsOnly(); }
+  else { var m=document.getElementById("m_amsg"); if(m) m.textContent=r.message||"Erreur"; }
+}
+async function toggle(code,statut){
+  const r=await call(statut==="actif"?"revoke":"activate",{ code });
+  if(r.ok){ loadList(); refreshStatsOnly(); } else alert(r.message||"Erreur");
+}
+async function release(code){
+  if(!confirm("Libérer l'appareil de "+code+" ? L'élève pourra réactiver sur un autre téléphone.")) return;
+  const r=await call("release",{ code });
+  if(r.ok) loadList(); else alert(r.message||"Erreur");
+}
+async function extend(code){
+  const date=prompt("Nouvelle date d'expiration (AAAA-MM-JJ) :","2026-09-30"); if(!date) return;
+  const r=await call("extend",{ code, date });
+  if(r.ok) loadList(); else alert(r.message||"Erreur");
+}
+
+/* reconnexion auto dans la même session */
+(function(){ try{ const p=sessionStorage.getItem("tafem_admin_pwd"); if(p){ document.getElementById("pwd").value=p; } }catch(e){} })();
+</script>
+</body>
+</html>
